@@ -14,3 +14,5 @@ type Broker interface {
 type Publisher interface {
 	Publish(m interface{}) error
 }
+
+//Publish should identify DeliveryTag and manage it for message Confirm or expire

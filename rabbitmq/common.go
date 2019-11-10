@@ -1,3 +1,144 @@
 package rabbitmq
 
+import (
+	"github.com/streadway/amqp"
+	"strings"
+	"github.com/golang/protobuf/proto"
+	"reflect"
+)
+
+var (
+	ErrInvalidHandler           = errors.New("invalid handler, must be func and have single proto.Message implement and return single error")
+	protoMessageType         = reflect.TypeOf((*proto.Message)(nil)).Elem()
+	errorType                = reflect.TypeOf((*error)(nil)).Elem()
+	errTypeIsNotPtr          = errors.New("type must be pointer")
+	errTypeIsNotProtoMessage = errors.New("type must be proto.Message")
+	errTypeIsNotError        = errors.New("type must be error")
+)
+
 //Connection, Channel, exchangeDeclare, queueDeclare, queueBind
+type handler struct {
+	methodValue reflect.Value
+	msgType     reflect.Type
+}
+
+func checkIsProtoMessage(t reflect.Type) error {
+	if t.Kind() != reflect.Ptr {
+		return errTypeIsNotPtr
+	}
+
+	if !t.Implements(protoMessageType) {
+		return errTypeIsNotProtoMessage
+	}
+	return nil
+}
+
+func checkIsError(t reflect.Type) error {
+	if !t.Implements(errorType) {
+		return errTypeIsNotError
+	}
+	return nil
+}
+
+func newHandler(h interface{}) (*handler, error) {
+	ht := reflect.TypeOf(h)
+	if ht.Kind() != reflect.Func {
+		return nil, ErrInvalidHandler
+	}
+
+	if ht.NumIn() != 1 {
+		return nil, ErrInvalidHandler
+	}
+
+	if ht.NumOut() != 1 {
+		return nil, ErrInvalidHandler
+	}
+
+	mt := ht.In(0)
+	if err := checkIsProtoMessage(mt); err != nil {
+		return nil, ErrInvalidHandler
+	}
+
+	et := ht.Out(0)
+	if err := checkIsError(et); err != nil {
+		return nil, ErrInvalidHandler
+	}
+
+	return &handler{
+		methodValue: reflect.ValueOf(h),
+		msgType:     mt,
+	}, nil
+}
+
+func (h *handler) newMessage() proto.Message {
+	return reflect.New(h.msgType.Elem()).Interface().(proto.Message)
+}
+
+func (h *handler) call(msg proto.Message) error {
+	in := []reflect.Value{reflect.ValueOf(msg)}
+	out := h.methodValue.Call(in)
+	if out[0].IsNil() {
+		return nil
+	}
+	return out[0].Interface().(error)
+}
+
+
+/*
+type IMessageClient interface {
+	ConnectToBroker(url string)
+	Publish(msg []byte, exchangeName, exchangeType string) error
+	PublishOnQueue(msg []byte, queueName string) error
+	Subscribe(exchangeName, exchangeType, consumerName string, handlerFunc func(amqp.Delivery)) error
+	SubscribeToQueue(queueName, consumerName string, handlerFunc func(amqp.Delivery)) error
+	Close()
+}
+
+type MessageClient struct {
+	conn *amqp.Connection
+}
+
+//amqp://guest:guest@rabbitmq:5672
+
+func (m *MessageClient) ConnectToBroker(url) {
+	if url == "" {
+		panic("can not initialize connection to broker, connection url is not set")
+	}
+	url = strings.TrimRight(url, "/")
+	var err error
+	//vhost : /
+	m.conn, err := amqp.Dial(fmt.Sprintf("%s/", url))
+	if err != nil {
+		panic("failed to connect to AMQP compatible broker at: " + url)
+	}
+}
+
+func (m *MessageClient) PublishOnQueue(body []byte, queueName string) error {
+	if m.conn == nil {
+		panic("try to send message before connection was initialized.")
+	}
+
+	ch, err := m.conn.Channel()
+	defer ch.Close()
+
+	queue, err := ch.queueDeclare(
+		queueName,
+		false,
+		false,
+		false,
+		false,
+		nil
+	)
+
+	err := ch.Publish(
+		"",
+		queue.Name,
+		false,
+		false,
+		amqp.Publishing{
+			ContentType: "application/json",
+			Body: body,
+		})
+    return err
+}
+*/
