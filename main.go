@@ -7,16 +7,19 @@ import (
 	"log"
 	"time"
 
-	"github.com/Ankr-network/dccn-common/broker/rabbitmq"
-
-	"github.com/Ankr-network/dccn-common/broker"
+	"github.com/CodeDing/mq/rabbitmq"
 )
 
 var (
-	topic            = "ankr.topic.hello"
-	ankrBroker       broker.Broker
-	helloPublisher   broker.Publisher
+	topic            = "test.topic.hello"
+	topic2           = "test.topic.message"
+	ankrBroker       rabbitmq.Broker
+
+	helloPublisher   rabbitmq.Publisher
 	helloSubscriber1 = logHandler{name: "hello1"}
+
+	messagePublisher  rabbitmq.Publisher
+	messageSubscriber = messageHandler{ID: 100000}
 
 	PUBLISH_INTERVAL = 5 * time.Second
 )
@@ -30,13 +33,29 @@ func (s *logHandler) handle(h *proto.Hello) error {
 	return nil
 }
 
+type messageHandler struct {
+	ID uint64
+}
+
+func (m *messageHandler) handle(h *proto.Hello) error {
+	log.Printf("ID:[%d] handler %+v", m.ID, h)
+	return nil
+}
+
 func init() {
 	var err error
 	ankrBroker = rabbitmq.NewBroker()
 	if helloPublisher, err = ankrBroker.Publisher(topic, true); err != nil {
 		log.Fatal(err)
 	}
-	if err := ankrBroker.Subscribe("hello1", topic, true, false, helloSubscriber1.handle); err != nil {
+	if err = ankrBroker.Subscribe("hello1", topic, true, false, helloSubscriber1.handle); err != nil {
+		log.Fatal(err)
+	}
+
+	if messagePublisher, err = ankrBroker.Publisher(topic2, false); err != nil {
+		log.Fatal(err)
+	}
+	if err = ankrBroker.Subscribe("message", topic2, true, false, messageSubscriber.handle); err != nil{
 		log.Fatal(err)
 	}
 }
@@ -47,9 +66,19 @@ func pub() {
 	for range tick.C {
 		msg := proto.Hello{Name: fmt.Sprintf("No.%d", i)}
 		if err := helloPublisher.Publish(&msg); err != nil {
+			tick.Stop()
+			break
 			log.Printf("[pub] failed: %v", err)
 		} else {
 			log.Printf("[pub] pubbed message: %v", msg.Name)
+		}
+
+		if err := messagePublisher.Publish(&msg); err != nil {
+			tick.Stop()
+			break
+			log.Printf("[pub(message)] failed: %v", err)
+		} else {
+			log.Printf("[pub(message)] pubbed message: %v", msg)
 		}
 		i++
 	}

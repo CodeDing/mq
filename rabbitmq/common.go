@@ -1,19 +1,23 @@
 package rabbitmq
 
 import (
-	"github.com/streadway/amqp"
-	"strings"
-	"github.com/golang/protobuf/proto"
+	"errors"
 	"reflect"
+
+	"github.com/golang/protobuf/proto"
 )
 
 var (
+	ErrMessageIsNotProtoMessage = errors.New("message must be proto.Message")
 	ErrInvalidHandler           = errors.New("invalid handler, must be func and have single proto.Message implement and return single error")
-	protoMessageType         = reflect.TypeOf((*proto.Message)(nil)).Elem()
-	errorType                = reflect.TypeOf((*error)(nil)).Elem()
-	errTypeIsNotPtr          = errors.New("type must be pointer")
-	errTypeIsNotProtoMessage = errors.New("type must be proto.Message")
-	errTypeIsNotError        = errors.New("type must be error")
+	ErrPublishMessageNotAck     = errors.New("message not ack by broker")
+	ErrProtoMarshal             = errors.New("marshal proto failed")
+	ErrChannelConfirm           = errors.New("set confirm mode failed")
+	protoMessageType            = reflect.TypeOf((*proto.Message)(nil)).Elem()
+	errorType                   = reflect.TypeOf((*error)(nil)).Elem()
+	errTypeIsNotPtr             = errors.New("type must be pointer")
+	errTypeIsNotProtoMessage    = errors.New("type must be proto.Message")
+	errTypeIsNotError           = errors.New("type must be error")
 )
 
 //Connection, Channel, exchangeDeclare, queueDeclare, queueBind
@@ -82,7 +86,6 @@ func (h *handler) call(msg proto.Message) error {
 	}
 	return out[0].Interface().(error)
 }
-
 
 /*
 type IMessageClient interface {
