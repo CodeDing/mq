@@ -137,6 +137,7 @@ func (p *publisher) Publish(m interface{}) error {
 			}
 			ticker.Stop()
 			logger.Printf("Publish message(reliable): send message failed\n")
+			return ErrPublishTimeout
 		}
 	}
 	err = p.channel.Publish(
