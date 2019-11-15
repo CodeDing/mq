@@ -13,11 +13,14 @@ var (
 	ErrPublishMessageNotAck     = errors.New("message not ack by broker")
 	ErrProtoMarshal             = errors.New("marshal proto failed")
 	ErrChannelConfirm           = errors.New("set confirm mode failed")
-	protoMessageType            = reflect.TypeOf((*proto.Message)(nil)).Elem()
-	errorType                   = reflect.TypeOf((*error)(nil)).Elem()
-	errTypeIsNotPtr             = errors.New("type must be pointer")
-	errTypeIsNotProtoMessage    = errors.New("type must be proto.Message")
-	errTypeIsNotError           = errors.New("type must be error")
+	ErrPublisherConn            = errors.New("publisher connection failed")
+	ErrPublishConnClose         = errors.New("publisher connection connection already close")
+
+	protoMessageType         = reflect.TypeOf((*proto.Message)(nil)).Elem()
+	errorType                = reflect.TypeOf((*error)(nil)).Elem()
+	errTypeIsNotPtr          = errors.New("type must be pointer")
+	errTypeIsNotProtoMessage = errors.New("type must be proto.Message")
+	errTypeIsNotError        = errors.New("type must be error")
 )
 
 //Connection, Channel, exchangeDeclare, queueDeclare, queueBind
@@ -86,62 +89,3 @@ func (h *handler) call(msg proto.Message) error {
 	}
 	return out[0].Interface().(error)
 }
-
-/*
-type IMessageClient interface {
-	ConnectToBroker(url string)
-	Publish(msg []byte, exchangeName, exchangeType string) error
-	PublishOnQueue(msg []byte, queueName string) error
-	Subscribe(exchangeName, exchangeType, consumerName string, handlerFunc func(amqp.Delivery)) error
-	SubscribeToQueue(queueName, consumerName string, handlerFunc func(amqp.Delivery)) error
-	Close()
-}
-
-type MessageClient struct {
-	conn *amqp.Connection
-}
-
-//amqp://guest:guest@rabbitmq:5672
-
-func (m *MessageClient) ConnectToBroker(url) {
-	if url == "" {
-		panic("can not initialize connection to broker, connection url is not set")
-	}
-	url = strings.TrimRight(url, "/")
-	var err error
-	//vhost : /
-	m.conn, err := amqp.Dial(fmt.Sprintf("%s/", url))
-	if err != nil {
-		panic("failed to connect to AMQP compatible broker at: " + url)
-	}
-}
-
-func (m *MessageClient) PublishOnQueue(body []byte, queueName string) error {
-	if m.conn == nil {
-		panic("try to send message before connection was initialized.")
-	}
-
-	ch, err := m.conn.Channel()
-	defer ch.Close()
-
-	queue, err := ch.queueDeclare(
-		queueName,
-		false,
-		false,
-		false,
-		false,
-		nil
-	)
-
-	err := ch.Publish(
-		"",
-		queue.Name,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType: "application/json",
-			Body: body,
-		})
-    return err
-}
-*/

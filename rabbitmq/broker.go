@@ -3,6 +3,7 @@ package rabbitmq
 import (
 	"fmt"
 	"regexp"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 
@@ -16,7 +17,9 @@ const (
 )
 
 var (
-	rabbitURLRegx       = regexp.MustCompile(`^amqp(s)?://.*`)
+	rabbitURLRegx     = regexp.MustCompile(`^amqp(s)?://.*`)
+	defaultRetryDelay = time.Millisecond * 200
+	reconnectDelay    = time.Second * 10
 )
 
 type rabbitBroker struct {
@@ -49,7 +52,6 @@ func NewBroker(url ...string) Broker {
 4. queue declare
 5. bind exchange, queue
 */
-
 func (r *rabbitBroker) Publisher(topic string, reliable bool) (Publisher, error) {
 	p := newPublisher(reliable, r.url, topic, r.conn)
 	return p, nil
