@@ -1,32 +1,64 @@
 package rabbitmq
 
-import "github.com/streadway/amqp"
+import (
+	"fmt"
+	"time"
+
+	"github.com/streadway/amqp"
+)
 
 type subscriber struct {
-	reliable bool
-	name     string
-	url      string
-	topic    string
-	*amqp.Connection
+	reliable    bool
+	name        string
+	url         string
+	topic       string
+	isConnected bool
+	done        chan struct{}
+	conn        *amqp.Connection
+	channel     *amqp.Channel
+	notifyClose chan *amqp.Error
 }
 
-func newSubscriber(reliable bool, name, url, topic string, conn *amqp.Connection) *subscriber {
-	if conn == nil {
-		var err error
-		conn, err = amqp.Dial(url)
-		if err != nil {
-			panic("failed to new connection to AMQP.")
-			return nil
+func newSubscriber(reliable bool, name, url, topic string) *subscriber {
+	s := &subscriber{
+		reliable:    reliable,
+		name:        name,
+		url:         url,
+		topic:       topic,
+		isConnected: false,
+		done:        make(chan struct{}),
+	}
+	go s.handlerConnect()
+	return s
+}
+
+func (s *subscriber) handlerConnect() {
+	for {
+		s.isConnected = false
+		logger.Println("Subscriber is attempting connect ...")
+		for !s.connect() {
+			fmt.Println("Subscriber failed to connect ...")
+			time.Sleep(reconnectDelay)
+		}
+		logger.Println("Subscriber connected!")
+		select {
+		case <-s.done:
+			return
+		case <-s.notifyClose:
 		}
 	}
-	return &subscriber{reliable, name, url, topic, conn}
 }
 
-func (s *subscriber) Consume() (<-chan amqp.Delivery, error) {
-	channel, err := s.Channel()
+func (s *subscriber) connect() bool {
+	conn, err := amqp.Dial(s.url)
 	if err != nil {
-		return nil, err
+		return false
 	}
+	channel, err := conn.Channel()
+	if err != nil {
+		return false
+	}
+
 	//Exchange Declare
 	err = channel.ExchangeDeclare(
 		s.name,
@@ -38,8 +70,9 @@ func (s *subscriber) Consume() (<-chan amqp.Delivery, error) {
 		nil,
 	)
 	if err != nil {
-		return nil, err
+		return false
 	}
+
 	args := amqp.Table{}
 	if !s.reliable {
 		args["x-message-ttl"] = 20 * 1000
@@ -53,7 +86,7 @@ func (s *subscriber) Consume() (<-chan amqp.Delivery, error) {
 		args,
 	)
 	if err != nil {
-		return nil, err
+		return false
 	}
 	//queue, key, exchange, false, nil
 	err = channel.QueueBind(
@@ -64,8 +97,39 @@ func (s *subscriber) Consume() (<-chan amqp.Delivery, error) {
 		nil,
 	)
 	if err != nil {
-		return nil, err
+		return false
+	}
+
+	s.conn = conn
+	s.channel = channel
+	s.notifyClose = make(chan *amqp.Error)
+	s.channel.NotifyClose(s.notifyClose)
+	s.isConnected = true
+	return true
+}
+
+func (s *subscriber) Consume() (<-chan amqp.Delivery, error) {
+	if !s.isConnected {
+		return nil, ErrSubscriberConnClose
 	}
 	//queue, consumer string, autoAck, exclusive, noLocal, noWait bool, args amqp.Table
-	return channel.Consume(s.name, "", !s.reliable, false, false, false, nil)
+	return s.channel.Consume(s.name, "", !s.reliable, false, false, false, nil)
+}
+
+func (s *subscriber) Close() error {
+	if !s.isConnected {
+		return ErrSubscriberConnClose
+	}
+
+	err := s.channel.Close()
+	if err != nil {
+		return err
+	}
+	err = s.conn.Close()
+	if err != nil {
+		return err
+	}
+	close(s.done)
+	s.isConnected = false
+	return nil
 }
