@@ -76,35 +76,6 @@ func (p *publisher) connect() bool {
 	return true
 }
 
-func (p *publisher) Publisher() error {
-	if !p.isConnected {
-		return ErrPublisherConn
-	}
-	channel, err := p.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if err := channel.Close(); err != nil {
-			fmt.Printf("failed to Channel.Close, err: %+v", err)
-		}
-	}()
-	//name, kind string, durable, autoDelete, internal, noWait bool, args Table
-	err = channel.ExchangeDeclare(
-		defaultExchange,
-		defaultExchangeType,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (p *publisher) Publish(m interface{}) error {
 	if !p.isConnected {
 		return ErrPublisherConn

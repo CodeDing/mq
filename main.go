@@ -66,17 +66,18 @@ func pub() {
 	for range tick.C {
 		msg := proto.Hello{Name: fmt.Sprintf("No.%d", i)}
 		if err := helloPublisher.Publish(&msg); err != nil {
+			log.Printf("[pub] failed: %v", err)
 			tick.Stop()
 			break
-			log.Printf("[pub] failed: %v", err)
 		} else {
 			log.Printf("[pub] pubbed message: %v", msg.Name)
 		}
 
 		if err := messagePublisher.Publish(&msg); err != nil {
+			log.Printf("[pub(message)] failed: %v", err)
 			tick.Stop()
 			break
-			log.Printf("[pub(message)] failed: %v", err)
+
 		} else {
 			log.Printf("[pub(message)] pubbed message: %v", msg)
 		}
