@@ -15,7 +15,6 @@ const (
 
 var (
 	rabbitURLRegx     = regexp.MustCompile(`^amqp(s)?://.*`)
-	defaultRetryDelay = time.Millisecond * 200
 )
 
 type rabbitBroker struct {

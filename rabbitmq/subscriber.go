@@ -1,7 +1,6 @@
 package rabbitmq
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/streadway/amqp"
@@ -37,7 +36,7 @@ func (s *subscriber) handlerConnect() {
 		s.isConnected = false
 		logger.Println("Subscriber is attempting connect ...")
 		for !s.connect() {
-			fmt.Println("Subscriber failed to connect ...")
+			logger.Println("Subscriber failed to connect ...")
 			time.Sleep(reconnectDelay)
 		}
 		logger.Println("Subscriber connected!")
