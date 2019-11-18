@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"mq/proto"
+	"github.com/CodeDing/mq/proto"
 
 	"log"
 	"time"
@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	topic            = "test.topic.hello"
-	topic2           = "test.topic.message"
-	ankrBroker       rabbitmq.Broker
+	topic      = "test.topic.hello"
+	topic2     = "test.topic.message"
+	ankrBroker rabbitmq.Broker
 
 	helloPublisher   rabbitmq.Publisher
 	helloSubscriber1 = logHandler{name: "hello1"}
