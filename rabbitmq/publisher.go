@@ -125,7 +125,7 @@ func (p *publisher) Publish(m interface{}) error {
 				}
 				return err
 			}
-			ticker := time.NewTicker(defaultRetryDelay)
+			ticker := time.NewTicker(resendDelay)
 			select {
 			case confirm := <-p.notifyConfirm:
 				if confirm.Ack {
