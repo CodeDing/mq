@@ -11,6 +11,19 @@ Message Queue client wrapper
 - unreliable: Publisher will send the message and return immediately and Consumer will not ack the each
         message.
         
+# Launch RabbitMQ
+
+## Step 1
+
+```
+docker build -t rabbitmq-with-plugin:management .
+```
+
+## Step 2
+
+```
+./run.sh
+```
         
 ## Reference
 
