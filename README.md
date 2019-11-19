@@ -14,4 +14,4 @@ Message Queue client wrapper
         
 ## Reference
 
- 
+- https://cloud.tencent.com/developer/article/1489458(TODO) 
