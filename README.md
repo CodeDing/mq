@@ -9,4 +9,9 @@ Message Queue client wrapper
 - reliable: Publisher uses RabbitMQ confirm mode to make sure the RabbitMQ Server receive the message 
         and Consumer will ack each message after receive and handle it successfully.
 - unreliable: Publisher will send the message and return immediately and Consumer will not ack the each
-        message. 
+        message.
+        
+        
+## Reference
+
+- https://cloud.tencent.com/developer/article/1489458(TODO) 

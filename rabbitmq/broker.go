@@ -1,13 +1,10 @@
 package rabbitmq
 
 import (
-	"fmt"
 	"regexp"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-
-	"github.com/streadway/amqp"
 )
 
 const (
@@ -18,13 +15,10 @@ const (
 
 var (
 	rabbitURLRegx     = regexp.MustCompile(`^amqp(s)?://.*`)
-	defaultRetryDelay = time.Millisecond * 200
-	reconnectDelay    = time.Second * 10
 )
 
 type rabbitBroker struct {
-	url  string
-	conn *amqp.Connection
+	url string
 }
 
 func NewBroker(url ...string) Broker {
@@ -38,11 +32,7 @@ func NewBroker(url ...string) Broker {
 	if !rabbitURLRegx.MatchString(host) {
 		return nil
 	}
-	conn, err := amqp.Dial(host)
-	if err != nil {
-		return nil
-	}
-	return &rabbitBroker{host, conn}
+	return &rabbitBroker{host}
 }
 
 /*
@@ -53,43 +43,51 @@ func NewBroker(url ...string) Broker {
 5. bind exchange, queue
 */
 func (r *rabbitBroker) Publisher(topic string, reliable bool) (Publisher, error) {
-	p := newPublisher(reliable, r.url, topic, r.conn)
+	p := newPublisher(reliable, r.url, topic)
 	return p, nil
 }
 
-//(reliable bool, name, url, topic string, conn *amqp.Connection)
 func (r *rabbitBroker) Subscribe(name, topic string, reliable, requeue bool, handler interface{}) error {
 	h, err := newHandler(handler)
 	if err != nil {
 		return err
 	}
-	s := newSubscriber(reliable, name, r.url, topic, r.conn)
-	delivery, err := s.Consume()
-	if err != nil {
-		return err
-	}
+	s := newSubscriber(reliable, name, r.url, topic)
 
 	go func() {
-		for d := range delivery {
-			var err error
-			msg := h.newMessage()
-			if err = proto.Unmarshal(d.Body, msg); err != nil {
-				fmt.Printf("failed to unmarshal body, err: %+v", err)
+		for {
+			if !s.isConnected {
+				time.Sleep(reconnectDelay)
 				continue
 			}
-			err = h.call(msg)
+			delivery, err := s.Consume()
 			if err != nil {
-				fmt.Printf("failed to handler msg, msg: %+v, err: %+v", msg, err)
-				err = d.Nack(false, requeue)
-				if err != nil {
-					fmt.Printf("failed to Nack, err: %+v", err)
-				}
+				logger.Printf("Subscriber, channel.Consume: %+v", err)
 				continue
 			}
-			if s.reliable {
-				err = d.Ack(false)
+			logger.Println("Subscriber start to consumer ...")
+			for d := range delivery {
+				var err error
+				msg := h.newMessage()
+				if err = proto.Unmarshal(d.Body, msg); err != nil {
+					logger.Printf("failed to unmarshal body, err: %+v", err)
+					continue
+				}
+				err = h.call(msg)
 				if err != nil {
-					fmt.Printf("failed to Ack, err: %+v", err)
+					logger.Printf("failed to handler msg, msg: %+v, err: %+v", msg, err)
+					err = d.Nack(false, requeue)
+					if err != nil {
+						logger.Printf("failed to Nack, err: %+v", err)
+					}
+					continue
+				}
+				//logger.Printf("handler message successfully, msg: %+v", msg)
+				if s.reliable {
+					err = d.Ack(false)
+					if err != nil {
+						logger.Printf("failed to Ack, err: %+v", err)
+					}
 				}
 			}
 

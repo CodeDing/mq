@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"mq/proto"
+	"github.com/CodeDing/mq/proto"
 
 	"log"
 	"time"
@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	topic            = "test.topic.hello"
-	topic2           = "test.topic.message"
-	ankrBroker       rabbitmq.Broker
+	topic      = "test.topic.hello"
+	topic2     = "test.topic.message"
+	ankrBroker rabbitmq.Broker
 
 	helloPublisher   rabbitmq.Publisher
 	helloSubscriber1 = logHandler{name: "hello1"}
@@ -21,7 +21,7 @@ var (
 	messagePublisher  rabbitmq.Publisher
 	messageSubscriber = messageHandler{ID: 100000}
 
-	PUBLISH_INTERVAL = 5 * time.Second
+	PUBLISH_INTERVAL = 2 * time.Second
 )
 
 type logHandler struct {
@@ -29,7 +29,7 @@ type logHandler struct {
 }
 
 func (s *logHandler) handle(h *proto.Hello) error {
-	log.Printf("[%s] handle %+v", s.name, h)
+	log.Printf("[%s] consume %+v", s.name, h)
 	return nil
 }
 
@@ -38,7 +38,7 @@ type messageHandler struct {
 }
 
 func (m *messageHandler) handle(h *proto.Hello) error {
-	log.Printf("ID:[%d] handler %+v", m.ID, h)
+	log.Printf("ID:[%d] consume %+v", m.ID, h)
 	return nil
 }
 
@@ -52,12 +52,12 @@ func init() {
 		log.Fatal(err)
 	}
 
-	if messagePublisher, err = ankrBroker.Publisher(topic2, false); err != nil {
-		log.Fatal(err)
-	}
-	if err = ankrBroker.Subscribe("message", topic2, true, false, messageSubscriber.handle); err != nil{
-		log.Fatal(err)
-	}
+	//if messagePublisher, err = ankrBroker.Publisher(topic2, false); err != nil {
+	//	log.Fatal(err)
+	//}
+	//if err = ankrBroker.Subscribe("message", topic2, true, false, messageSubscriber.handle); err != nil{
+	//	log.Fatal(err)
+	//}
 }
 
 func pub() {
@@ -67,20 +67,16 @@ func pub() {
 		msg := proto.Hello{Name: fmt.Sprintf("No.%d", i)}
 		if err := helloPublisher.Publish(&msg); err != nil {
 			log.Printf("[pub] failed: %v", err)
-			tick.Stop()
-			break
 		} else {
 			log.Printf("[pub] pubbed message: %v", msg.Name)
 		}
 
-		if err := messagePublisher.Publish(&msg); err != nil {
-			log.Printf("[pub(message)] failed: %v", err)
-			tick.Stop()
-			break
-
-		} else {
-			log.Printf("[pub(message)] pubbed message: %v", msg)
-		}
+		//if err := messagePublisher.Publish(&msg); err != nil {
+		//	log.Printf("[pub(message)] failed: %v", err)
+		//
+		//} else {
+		//	log.Printf("[pub(message)] pubbed message: %v", msg)
+		//}
 		i++
 	}
 }
@@ -88,5 +84,5 @@ func pub() {
 func main() {
 	time.Sleep(1 * time.Second)
 	go pub()
-	<-time.After(time.Second * 100)
+	<-time.After(time.Second * 600)
 }

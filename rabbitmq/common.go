@@ -11,10 +11,12 @@ var (
 	ErrMessageIsNotProtoMessage = errors.New("message must be proto.Message")
 	ErrInvalidHandler           = errors.New("invalid handler, must be func and have single proto.Message implement and return single error")
 	ErrPublishMessageNotAck     = errors.New("message not ack by broker")
+	ErrPublishTimeout           = errors.New("publish message wait confirmation timeout")
 	ErrProtoMarshal             = errors.New("marshal proto failed")
 	ErrChannelConfirm           = errors.New("set confirm mode failed")
 	ErrPublisherConn            = errors.New("publisher connection failed")
-	ErrPublishConnClose         = errors.New("publisher connection connection already close")
+	ErrPublishConnClose         = errors.New("publisher connection already close")
+	ErrSubscriberConnClose      = errors.New("subscriber connection already close")
 
 	protoMessageType         = reflect.TypeOf((*proto.Message)(nil)).Elem()
 	errorType                = reflect.TypeOf((*error)(nil)).Elem()
