@@ -16,15 +16,15 @@ const (
 )
 
 type publisher struct {
-	reliable      bool
-	url           string
-	topic         string
-	isConnected   bool
-	done          chan struct{}
-	conn          *amqp.Connection
-	channel       *amqp.Channel
-	notifyClose   chan *amqp.Error
-	notifyConfirm chan amqp.Confirmation
+	reliable    bool
+	url         string
+	topic       string
+	isConnected bool
+	done        chan struct{}
+	conn        *amqp.Connection
+	//channel       *amqp.Channel
+	notifyClose chan *amqp.Error
+	//notifyConfirm chan amqp.Confirmation
 }
 
 func newPublisher(reliable bool, url, topic string) *publisher {
@@ -79,19 +79,24 @@ func (p *publisher) connect() bool {
 		return false
 	}
 
-	if p.reliable {
-		err = channel.Confirm(false)
-		if err != nil {
-			return false
-		}
+	err = channel.Close()
+	if err != nil {
+		return false
 	}
+	//if p.reliable {
+	//	err = channel.Confirm(false)
+	//	if err != nil {
+	//		return false
+	//	}
+	//}
 
 	p.conn = conn
-	p.channel = channel
 	p.notifyClose = make(chan *amqp.Error)
-	p.notifyConfirm = make(chan amqp.Confirmation)
-	p.channel.NotifyClose(p.notifyClose)
-	p.channel.NotifyPublish(p.notifyConfirm)
+	p.conn.NotifyClose(p.notifyClose)
+	//p.channel = channel
+	//p.notifyConfirm = make(chan amqp.Confirmation)
+	//p.channel.NotifyClose(p.notifyClose)
+	//p.channel.NotifyPublish(p.notifyConfirm)
 	p.isConnected = true
 	return true
 }
@@ -119,11 +124,23 @@ func (p *publisher) Publish(m interface{}) error {
 		Priority:        0,
 	}
 
+	channel, err := p.conn.Channel()
+	if err != nil {
+		return ErrCreatePublishChannel
+	}
+
 	if p.reliable {
 		currentTime := 0
+		err := channel.Confirm(false)
+		if err != nil {
+			return ErrConfirmPublishChannel
+		}
+		notifyConfirm := make(chan amqp.Confirmation)
+		//notifyConfirm = channel.NotifyPublish(notifyConfirm)
+
 		for {
 			publishing.DeliveryMode = amqp.Persistent
-			if err := p.channel.Publish(
+			if err := channel.Publish(
 				defaultExchange,
 				p.topic,
 				false,
@@ -140,9 +157,9 @@ func (p *publisher) Publish(m interface{}) error {
 			}
 			ticker := time.NewTicker(resendDelay)
 			select {
-			case confirm := <-p.notifyConfirm:
+			case confirm := <-channel.NotifyPublish(notifyConfirm):
 				if confirm.Ack {
-					//logger.Printf("Publish message(reliable): msg=> %+v, DeliveryTag=>%d\n", m, confirm.DeliveryTag)
+					logger.Printf("Publish message(reliable): msg=> %+v, DeliveryTag=>%d\n", m, confirm.DeliveryTag)
 					return nil
 				}
 			case <-ticker.C:
@@ -153,7 +170,7 @@ func (p *publisher) Publish(m interface{}) error {
 			return ErrPublishTimeout
 		}
 	}
-	err = p.channel.Publish(
+	err = channel.Publish(
 		defaultExchange,
 		p.topic,
 		false,
@@ -168,11 +185,11 @@ func (p *publisher) Close() error {
 	if !p.isConnected {
 		return ErrPublishConnClose
 	}
-	err := p.channel.Close()
-	if err != nil {
-		return err
-	}
-	err = p.conn.Close()
+	//err := p.channel.Close()
+	//if err != nil {
+	//	return err
+	//}
+	err := p.conn.Close()
 	if err != nil {
 		return err
 	}

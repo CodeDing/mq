@@ -17,6 +17,8 @@ var (
 	ErrPublisherConn            = errors.New("publisher connection failed")
 	ErrPublishConnClose         = errors.New("publisher connection already close")
 	ErrSubscriberConnClose      = errors.New("subscriber connection already close")
+	ErrCreatePublishChannel     = errors.New("create publish channel failed")
+	ErrConfirmPublishChannel    = errors.New("confirm mode publish channel failed")
 
 	protoMessageType         = reflect.TypeOf((*proto.Message)(nil)).Elem()
 	errorType                = reflect.TypeOf((*error)(nil)).Elem()
