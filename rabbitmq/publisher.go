@@ -22,9 +22,7 @@ type publisher struct {
 	isConnected bool
 	done        chan struct{}
 	conn        *amqp.Connection
-	//channel       *amqp.Channel
 	notifyClose chan *amqp.Error
-	//notifyConfirm chan amqp.Confirmation
 }
 
 func newPublisher(reliable bool, url, topic string) *publisher {
@@ -83,20 +81,10 @@ func (p *publisher) connect() bool {
 	if err != nil {
 		return false
 	}
-	//if p.reliable {
-	//	err = channel.Confirm(false)
-	//	if err != nil {
-	//		return false
-	//	}
-	//}
 
 	p.conn = conn
 	p.notifyClose = make(chan *amqp.Error)
 	p.conn.NotifyClose(p.notifyClose)
-	//p.channel = channel
-	//p.notifyConfirm = make(chan amqp.Confirmation)
-	//p.channel.NotifyClose(p.notifyClose)
-	//p.channel.NotifyPublish(p.notifyConfirm)
 	p.isConnected = true
 	return true
 }
@@ -136,7 +124,6 @@ func (p *publisher) Publish(m interface{}) error {
 			return ErrConfirmPublishChannel
 		}
 		notifyConfirm := make(chan amqp.Confirmation)
-		//notifyConfirm = channel.NotifyPublish(notifyConfirm)
 
 		for {
 			publishing.DeliveryMode = amqp.Persistent
@@ -159,7 +146,7 @@ func (p *publisher) Publish(m interface{}) error {
 			select {
 			case confirm := <-channel.NotifyPublish(notifyConfirm):
 				if confirm.Ack {
-					logger.Printf("Publish message(reliable): msg=> %+v, DeliveryTag=>%d\n", m, confirm.DeliveryTag)
+					//logger.Printf("Publish message(reliable): msg=> %+v, DeliveryTag=>%d\n", m, confirm.DeliveryTag)
 					return nil
 				}
 			case <-ticker.C:
@@ -185,10 +172,6 @@ func (p *publisher) Close() error {
 	if !p.isConnected {
 		return ErrPublishConnClose
 	}
-	//err := p.channel.Close()
-	//if err != nil {
-	//	return err
-	//}
 	err := p.conn.Close()
 	if err != nil {
 		return err
