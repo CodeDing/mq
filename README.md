@@ -28,3 +28,8 @@ docker build -t rabbitmq-with-plugin:management .
 ## Reference
 
 - https://cloud.tencent.com/developer/article/1489458(TODO) 
+
+### YAML
+
+- https://www.kubernetes.org.cn/2629.html 
+- https://www.kubernetes.org.cn/4679.html(IP模式)
