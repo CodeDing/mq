@@ -40,12 +40,12 @@ func newPublisher(reliable bool, url, topic string) *publisher {
 func (p *publisher) handleConnect() {
 	for {
 		p.isConnected = false
-		logger.Println("Publisher is attempting connect ...")
+		logger.Printf("Publisher[%s] is attempting connect ...", p.topic)
 		for !p.connect() {
-			logger.Println("Publisher failed to connect ...")
+			logger.Printf("Publisher[%s] failed to connect.", p.topic)
 			time.Sleep(reconnectDelay)
 		}
-		logger.Println("Publisher connected!")
+		logger.Printf("Publisher[%s] connected!", p.topic)
 		select {
 		case <-p.done:
 			return
@@ -135,7 +135,7 @@ func (p *publisher) Publish(m interface{}) error {
 				publishing,
 			); err != nil {
 				currentTime += 1
-				logger.Printf("Publish message(reliable) failed, retry %d time\n", currentTime)
+				logger.Printf("Publisher[%s] message(reliable) failed, retry %d time", p.topic, currentTime)
 				if currentTime < resendTime {
 					time.Sleep(resendDelay)
 					continue
@@ -146,14 +146,12 @@ func (p *publisher) Publish(m interface{}) error {
 			select {
 			case confirm := <-channel.NotifyPublish(notifyConfirm):
 				if confirm.Ack {
-					//logger.Printf("Publish message(reliable): msg=> %+v, DeliveryTag=>%d\n", m, confirm.DeliveryTag)
 					return nil
 				}
 			case <-ticker.C:
-				//logger.Printf("Publish message(reliable) timeout: msg=> %+v\n", m)
 			}
 			ticker.Stop()
-			logger.Printf("Publish message(reliable): send message failed\n")
+			logger.Printf("Publish[%s] message(reliable): send message failed", p.topic)
 			return ErrPublishTimeout
 		}
 	}
@@ -164,7 +162,7 @@ func (p *publisher) Publish(m interface{}) error {
 		false,
 		publishing,
 	)
-	//logger.Printf("Publish mesage(unreliable): %+v\n", m)
+	logger.Printf("Publish[%s] mesage(unreliable): %+v", p.topic, m)
 	return err
 }
 

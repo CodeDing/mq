@@ -9,3 +9,7 @@
 ## Modify
 
 - Adjust publish message one-shot channel
+
+# TODO
+
+- Add logger associated with the publisher and subscriber

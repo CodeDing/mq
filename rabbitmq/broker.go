@@ -14,7 +14,7 @@ const (
 )
 
 var (
-	rabbitURLRegx     = regexp.MustCompile(`^amqp(s)?://.*`)
+	rabbitURLRegx = regexp.MustCompile(`^amqp(s)?://.*`)
 )
 
 type rabbitBroker struct {
@@ -44,6 +44,9 @@ func NewBroker(url ...string) Broker {
 */
 func (r *rabbitBroker) Publisher(topic string, reliable bool) (Publisher, error) {
 	p := newPublisher(reliable, r.url, topic)
+	if !p.isConnected {
+		time.Sleep(time.Second)
+	}
 	return p, nil
 }
 
@@ -62,23 +65,23 @@ func (r *rabbitBroker) Subscribe(name, topic string, reliable, requeue bool, han
 			}
 			delivery, err := s.Consume()
 			if err != nil {
-				logger.Printf("Subscriber, channel.Consume: %+v", err)
+				logger.Printf("Subscriber[%s:%s], channel.Consume: %+v", name, topic, err)
 				continue
 			}
-			logger.Println("Subscriber start to consumer ...")
+			logger.Println("Subscriber[%s:%s], start to consumer ...", name, topic)
 			for d := range delivery {
 				var err error
 				msg := h.newMessage()
 				if err = proto.Unmarshal(d.Body, msg); err != nil {
-					logger.Printf("failed to unmarshal body, err: %+v", err)
+					logger.Printf("Subscriber[%s:%s], failed to unmarshal body, err: %+v", name, topic, err)
 					continue
 				}
 				err = h.call(msg)
 				if err != nil {
-					logger.Printf("failed to handler msg, msg: %+v, err: %+v", msg, err)
+					logger.Printf("Subscriber[%s:%s], failed to handler msg, msg: %+v, err: %+v", name, topic, msg, err)
 					err = d.Nack(false, requeue)
 					if err != nil {
-						logger.Printf("failed to Nack, err: %+v", err)
+						logger.Printf("Subscriber[%s:%s], failed to Nack, err: %+v", name, topic, err)
 					}
 					continue
 				}
@@ -86,7 +89,7 @@ func (r *rabbitBroker) Subscribe(name, topic string, reliable, requeue bool, han
 				if s.reliable {
 					err = d.Ack(false)
 					if err != nil {
-						logger.Printf("failed to Ack, err: %+v", err)
+						logger.Printf("Subscriber[%s:%s], failed to Ack, err: %+v", name, topic, err)
 					}
 				}
 			}

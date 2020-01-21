@@ -42,24 +42,6 @@ func (m *messageHandler) handle(h *proto.Hello) error {
 	return nil
 }
 
-func init() {
-	var err error
-	ankrBroker = rabbitmq.NewBroker()
-	if helloPublisher, err = ankrBroker.Publisher(topic, true); err != nil {
-		log.Fatal(err)
-	}
-	if err = ankrBroker.Subscribe("hello1", topic, true, false, helloSubscriber1.handle); err != nil {
-		log.Fatal(err)
-	}
-
-	//if messagePublisher, err = ankrBroker.Publisher(topic2, false); err != nil {
-	//	log.Fatal(err)
-	//}
-	//if err = ankrBroker.Subscribe("message", topic2, true, false, messageSubscriber.handle); err != nil{
-	//	log.Fatal(err)
-	//}
-}
-
 func pub() {
 	tick := time.NewTicker(PUBLISH_INTERVAL)
 	i := 0
@@ -70,19 +52,19 @@ func pub() {
 		} else {
 			log.Printf("[pub] pubbed message: %v", msg.Name)
 		}
-
-		//if err := messagePublisher.Publish(&msg); err != nil {
-		//	log.Printf("[pub(message)] failed: %v", err)
-		//
-		//} else {
-		//	log.Printf("[pub(message)] pubbed message: %v", msg)
-		//}
 		i++
 	}
 }
 
 func main() {
-	time.Sleep(1 * time.Second)
+	var err error
+	ankrBroker = rabbitmq.NewBroker()
+	if helloPublisher, err = ankrBroker.Publisher(topic, true); err != nil {
+		log.Fatal(err)
+	}
+	if err = ankrBroker.Subscribe("hello1", topic, true, false, helloSubscriber1.handle); err != nil {
+		log.Fatal(err)
+	}
 	go pub()
 	<-time.After(time.Second * 600)
 }
